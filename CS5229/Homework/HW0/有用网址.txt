@@ -1,0 +1,28 @@
+https://mailman.stanford.edu/pipermail/mininet-discuss/2014-October/005237.html
+
+同时运行mininet的参考教程
+
+
+https://floodlight.atlassian.net/wiki/spaces/floodlightcontroller/pages/1343509/Module+Applications
+
+floodlight 官方网址
+
+http://mininet.org/api/annotated.html
+
+mininet 官方 python定义
+
+http://mininet.org/
+
+mininet 官方网页
+
+https://feisky.gitbooks.io/sdn/content/mininet/
+
+SDN的相关gitbook
+
+https://github.com/noise-lab/Coursera-SDN
+
+SDN的相关github
+
+https://www.ibm.com/docs/en/aix/7.1?topic=p-ping-command
+
+IBM的ping相关
