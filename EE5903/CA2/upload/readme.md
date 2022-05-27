@@ -2,7 +2,7 @@
 
 This simulation project contains 3 seperate simulations.
 
-![image-20210407224241460](D:\2021\NUS-ECE\EE5903-实时操作系统\CA2\simulation_structure.png)
+![simulation_structure](https://s2.loli.net/2022/05/27/EfCVLv4emUlaxWM.png)
 
 The first one is compare the performance between **OSJF** and RSJF. In this simulation, the input of process list is same as the paper said. The aim of this simulation is to verify the result in the OSJF paper.
 
