@@ -1,0 +1,134 @@
+The following function is given to you to readily build a Fat Tree topology graph for a given parameter k.
+
+In [2]:
+import fnss
+
+def build_fattree_graph(k):
+    """
+    Uses the fnss library to build a fat tree topology with k-port switches
+    
+    Parameters
+    ----------
+    k: int
+      Number of ports per fat tree switch
+      
+    Returns
+    -------
+    fnss.DatacenterTopology
+    """
+    return fnss.fat_tree_topology(k)
+
+
+Building a Complete Graph
+The following function is given to you to readily build a complete graph with n nodes.
+
+In [3]:
+import networkx as nx
+
+def build_complete_graph(n):
+    """
+    Use the networkX library to build a complete graph
+    
+    Parameters
+    ----------
+    n: int
+      Number of nodes in the graph
+      
+    Returns
+    -------
+    networkx.Graph
+      Complete graph with n nodes
+    """
+    return nx.complete_graph(n)
+
+Building a Complete Graph
+The following function is given to you to readily build a complete graph with n nodes.
+
+In [3]:
+import networkx as nx
+
+def build_complete_graph(n):
+    """
+    Use the networkX library to build a complete graph
+    
+    Parameters
+    ----------
+    n: int
+      Number of nodes in the graph
+      
+    Returns
+    -------
+    networkx.Graph
+      Complete graph with n nodes
+    """
+    return nx.complete_graph(n)
+
+    host_list = []
+    switch_port_count = {}
+
+    # Initialize nodes
+    graph = nx.Graph()
+    for i in range(num_racks):
+      _switch = 's' + str(i+1)
+      switch_list.append(_switch)
+      graph.add_node(_switch, type='switch')
+    for i in range(num_hosts):
+      _host = 'h' + str(i+1)
+      host_list.append(_host)
+      graph.add_node(_host, type='host')
+
+    # Connect hosts to switches
+    host_set = set(host_list)
+    for switch in switch_list:
+      for i in range(num_hosts_per_rack):
+        _host = random.choice(tuple(host_set))
+        graph.add_edge(switch, _host) # two directions?
+        host_set.remove(_host)
+    
+    # Connect switches to switches
+    num_ports_free = switch_degree - num_hosts_per_rack
+    for switch in switch_list:
+      switch_port_count[switch] = num_ports_free
+
+    switch_set = set(switch_list)
+    for switch in switch_list:
+      if switch in switch_set:
+        switch_set.remove(switch)
+        _free_ports = switch_port_count[switch]
+        if _free_ports > len(switch_set):
+          _free_ports = len(switch_set)
+        _switches = random.sample(switch_set, _free_ports)
+        for _switch in _switches:
+          graph.add_edge(switch, _switch)
+          switch_port_count[switch] -= 1
+          switch_port_count[_switch] -= 1
+          if switch_port_count[_switch] == 0:
+            switch_set.remove(_switch)
+    
+    return graph
+
+    switch_set = set(switch_list)
+    for switch in switch_list:
+      if switch in switch_set:
+        switch_set.remove(switch)
+        _free_ports = switch_port_count[switch]
+        if _free_ports > len(switch_set):
+          _free_ports = len(switch_set)
+        _switches = random.sample(switch_set, _free_ports)
+        for _switch in _switches:
+          graph.add_edge(switch, _switch)
+          switch_port_count[switch] -= 1
+          switch_port_count[_switch] -= 1
+          if switch_port_count[_switch] == 0:
+            switch_set.remove(_switch)
+    
+    return graph
+
+The following code demonstrates the usage of the helper function:
+
+In [17]:
+# fat_tree_6 = build_fattree_graph(6)
+# draw_topo_graph(fat_tree_6, './fat_tree_6.png')
+
+jellyfish_20_4_1 = build_jellyfish_graph(20, 4, 1)
+draw_topo_graph(jellyfish_20_4_1, './jellyfish_20_4_1.png')

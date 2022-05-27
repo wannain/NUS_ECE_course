@@ -1,0 +1,246 @@
+最近在拜读Parameter Server时，我看到文中有提到Distributed Hash Table (DHT)，进而意识到自己对DHT仍处于一知半解的状态。是，我知道它的原理大概是各个server node组成一个环；是，我知道每个用户存储的key会被映射到环上一点，然后由环上的下一个node负责（需要预先约定顺时针/逆时针）；是，我还知道这个设计的优点在当增减node时，不会发生global rehashing，而只需要交换局部几个节node点的数据。然而，究竟是谁在负责维护key到server node的映射？客户端是如何通过key找到对应的node的？
+
+在第一次接触到DHT时，我根本没有去思考这个问题。这太容易了——直接找出来环上离这个key最近的那个node就行了。
+
+然而系统并没有这种上帝视角。如何维护这个环的结构，尤其是在分布式环境下，显然没有想象的那么简单。
+
+一个直观的想法是上一套controller + server的架构。controller存储hashed key range到具体server node的映射。无论是客户端请求，还是增删node，都需要controller参与。然后为了高可用性，我们引入paxo...等等，这和传统的分布式key-value数据库有啥区别？
+
+让我们来看看Chord是如何解决这个问题的。
+
+Chord
+[1]开篇解释了Chord是什么，其应用场景是什么。
+
+A fundamental problem that confronts peer-to-peer applications is to efficiently locate the node that stores a particular data item.
+P2P应用中一个经典问题就是如何高效地找到存储了某个数据条目的server node。
+
+The Chord protocol supports just one operation: given a key, it maps the key onto a node. Depending on the application using Chord, that node might be responsible for storing a value associated with the key.
+Chord协议只支持一种操作：把一个给定的key映射到一个server node。具体到应用来说，Chord server node可能还需要存储key对应的value。
+它的特性有以下几点：
+
+Decentralization: All nodes are created equal. 直接毙掉了controller...
+Availability: 即使在系统处于长期的node增减的状态下，Chord仍然能尽量保证应用可以快速找到一个key对应的node。
+Scalability: Chord的key lookup复杂度是 [公式] 的， [公式] 为node数量。
+Load balance: 假设哈希表中条目总数 [公式] ，那么平均每个node负责 [公式] 个条目。这也是增减node时大概需要移动的数据量。
+好了，我们可以看看Chord的设计了。
+
+Chord通过某个哈希算法（如SHA-1）为每个server node或所存储的key计算出一个m位的哈希值，统称为identifier。对于server node，其identifier通过hashing IP address得到。
+
+所有identifiers（不论是node还是key）都在取模 [公式] 后按顺序排列在一个环上，该环称为identifier space。对于一个identifier为k的key（即哈希值为k），它由环上第一个identifier不小于k的node负责维护。该node叫做identifier k的successor node，记作successor(k)。再直观一点的讲，successor(k)是环上从k顺时针起（包括k本身）第一个遇到的node。
+
+
+图中系统由三个nodes构成，其identifier分别为0, 1, 3。对于identifier 1，由于其对应位置上正好有一个node，因此successor(1) = 1。对于identifier 2，顺时针起第一个遇到的是node 3，因此successor(2) = 3。同理可得，successor(6) = 0。
+假设node总数为 [公式] ，key总数为 [公式] 。可以证明，这种设计可以保证以下两点有很大概率被满足：
+
+每个node负责的keys数量不超过 [公式] 。
+当再增加或删减一个node时，需要转移的key的数量为 [公式] 。
+鉴于本文重点分析的是如何维护这个环的结构（<del>笔者孱弱的数学功底</del>），这类结论的证明都会被无情跳过...
+
+数据结构
+到目前为止，一切都是已知的。我们尚未解决开篇的问题：如何通过一个key找到node？
+
+最简单的来看，每个node只需要知道自己在环上的successor node即可。所有的nodes构成了一个环形单向链表。每次做lookup时，从任一node开始，通过不断hop找到相应的node。链表结构是Chord正确性的基础。但其缺点也很明显：查找一个key的复杂度为 [公式] 。
+
+为了加速查询过程，Chord在该基础上又增加了一些路由信息。仍记 [公式] 为哈希值的位数，每个node都维护一个长度为[公式] 的表，称为finger table。对于一个identifier为 [公式] 的node，其finger table中的第 [公式] 项存储了在 [公式] 之后环上的第一个node [公式] 。也就是说， [公式] 。node [公式] 称为node [公式] 的第 [公式] 个finger。
+
+对于finger table中的第 [公式] 行，其具体存储的信息由下表列出
+
+-------------------------------------------------------------------
+| Field         | Definition                                      |
+-------------------------------------------------------------------
+| start         | (n + 2^{i - 1}) mod 2^m. This is an identifier. |
+-------------------------------------------------------------------
+| interval      | [finger[i].start, finger[i + 1].start)          |
+-------------------------------------------------------------------
+| node          | ip:port of successor(start)                     |
+-------------------------------------------------------------------
+接上图的例子，这次将finger table也标出：
+
+
+
+
+以node 1为例：
+
+[公式]
+
+[公式]
+
+[公式]
+
+对于一个node n，由于其finger table的第一行永远对应环上直接与n相邻的下一个节点，为方便起见，我们简称finger[1].node为node n的successor。
+
+Finger table的设计使得每个node存储的信息相对总node数量来说仍然只是很少的一部分。不过，这种设计并不保证任意一个identifier k都能被node从自己的finger table中找到。在绝大多数情况下，key lookup仍需要几次hop来定位所对应的node。以上图node 3为例，它本身并不知道identifier 1的successor (node 1)。
+
+那这种情况下怎么办呢？
+
+假如node n可以找到另一个node n'，其identifier离k更近，则n'更有可能知道关于k的信息。因此，node n会在自己的finger table中搜索出在k之前而离k最近的node（也即链表关系中k的predecessor，原文为the node whose identifier most immediately precedes k），并hop到那个node来继续lookup。伪代码如下：
+
+def id(x):
+  # x可以是一个node或者一个key
+  return the identifier of x
+  
+# 在node n上寻找identifier k的successor
+def n.find_successor(k):
+  n' = find_predecessor(k)
+  return n'.successor
+
+# 在node n上寻找identifier k的predecessor
+def n.find_predecessor(k):
+  n' = n
+  while k not in (id(n'), id(n'.successor)]:  # 左开右闭区间
+    n' = n'.closest_preceding_finger(k)
+  return n'
+
+# 在node n的finger table中寻找identifier k的最近的predecessor
+def n.closest_preceding_finger(k):
+  n_id = id(n)
+  for i in m downto 1:
+    if id(finger[i].node) in (n_id, k): # 双开区间
+      return finger[i].node
+  return n
+注：
+
+n.foo()代表通过RPC在node n上执行foo()，同样，n.bar代表通过RPC获取node n上的bar变量 。所有需要RPC远程执行的函数或获取的变量都加入了node前缀，本地执行的则省略。下文所有的分析都需要注意context，即这个函数是在哪个node上执行的。
+所有区间在到 [公式] 时都wrap到0。举例来说，假设 [公式] ，则[公式] ，而 [公式] 。
+find_successor()很容易理解。我们来看看find_predecessor()。
+
+当node n执行find_predecessor()时，它会跟一系列逐渐逼近 identifier k的nodes进行RPC。如果当中的某个node n'使得k落在在 [公式] 区间（左开右闭，因此是k严格大于n'），那么n'就是k的predecessor，返回n'。
+
+而选择这一系列nodes的过程则由closest_preceding_finger()完成。算法本身也很简单，从最远的node开始，依次检测其finger table中的node n'是否落入 [公式] 区间。如果是，那么n'可能会是k的一个predecessor，返回n'（并通过上层的find_predecessor()来验证是否真的是predecessor）。如果没有找到，则返回自己。
+
+以在node 3上查询identifier=1的key为例。在node3.find_predecessor(1)开始时，n'为node 3，其successor为node 0，然而1并不在(3, 0] 区间，因此node 3会在本地调用closest_preceding_finger(1)查询自己的finger table。在遍历finger table时，因为 [公式] ，遍历会返回node 0。回到的node3.find_predecessor(1)中，此时n'更新为node 0。因为 [公式] ，因此返回node 0到node3.find_successor(1) 中，最后node3.find_successor(1)返回node 1。
+
+一种直观上的理解是，find_predecessor()每次迭代时，node n'离identifier k的距离都会减半。因此使用该算法进行lookup的时间复杂度为 [公式] 。
+
+本段对应原文[1]的section 4.3。
+
+添加一个node
+上一段是基于系统稳定，每个node的finger table都已经建立好的条件下讨论的。而系统是如何建立这个finger table的呢？这也对应于添加一个新的node（或删除一个存在的node）的情况。因此如何向系统中增加一个node？
+
+为保证可用性，在增减node时，系统仍需要能够定位每个key。为了实现这点，Chord需要如下两个不变量：
+
+每个node的successor都是正确的；
+对于key k, successor(k)负责维护k。
+之前说过，1本身就能保证系统的正确性。但是为了执行效率，node的finger table也应该尽量保持在最新状态。
+
+为了简单起见，先来看看增加一个node时系统都发生了什么。同时，我们令每个node再多记录一个predecessor信息，即环上沿逆时针走遇到的第一个node。
+
+为了维护上面两条不变量，Chord在增加一个node n时会做以下三件事：
+
+初始化n的predecessor和finger table（注意successor只是finger table第一项的别称）；
+更新系统中一部分nodes的predecessor和finger table；
+通知上层应用关于node n的信息。应用层会因此执行一些数据转移工作。
+# 添加node n到系统中。可能会用到已有node n'来进行初始化
+def n.join(n'):
+  if n':
+    init_finger_table(n')
+    update_others()
+    // 通知successor将(predecessor, n]之间的key转移到自己
+  else:
+    # n是系统中的第一个node
+    for i = 1 to m:
+      finger[i].node = n
+    predecessor = n
+node n的初始化
+
+一个新的node n可以通过任意一个已有的node n'初始化自身信息，其实现为init_finger_table()。
+
+# 利用已有node n'来初始化node n
+def n.init_finger_table(n'):
+  # 初始化finger[*].start，不需要任何RPC
+  # ...
+  finger[1].node = n'.find_successor(finger[1].start)  # 计算n.successor
+  predecessor = successor.predecessor
+  successor.predecessor = n  # needs an RPC
+  for i = 1 to (m - 1):
+    # 优化
+    if finger[i + 1].start in [id(n), id(finger[i].node)):  # 左闭右开
+      finger[i + 1].node = finger[i].node
+    else:
+      finger[i + 1].node = n'.find_successor(finger[i + 1].start)
+如果去掉优化分支的话，函数的复杂度为 [公式] 。而我们注意到，当 [公式] 时， [公式] ，因此可以省略一次RPC。可以证明，这个优化能将复杂度降到 [公式] 。
+
+另一个优化是， 在加入node n时，我们可以先通过任意node n'找到n的successor；再利用successor的finger table信息去指导node n的初始化过程。这个优化可以进一步将复杂度降至 [公式] （最耗时的操作即找到successor本身）
+
+更新已有nodes
+
+将node n加入环的第二步是更新已有的nodes的finger table，即update_others()。
+
+# 更新所有需要将node n加入到自己finger table的nodes
+def n.update_others():
+  for i = 1 to m:
+    p_id = (id(n) - (2 ** (i - 1))) % (2 ** m)
+    p = find_predecessor(p_id)
+    p.update_finger_table(n, i)
+
+# 如果node s是node n的finger table中的第i项，则更新n的finger table
+def n.update_finger_table(s, i):
+  if s in [id(n), id(finger[i].node)):
+    finger[i].node = s
+    p = predecessor
+    p.update_finger_table(s, i)
+  
+有哪些nodes的finger table需要更新呢？
+
+对于一个已有node p来说，新的node n会成为其finger table中的第 [公式] 项，当且仅当：
+
+node p在node n之前并相隔至少 [公式]
+node p当前的finger table中的第 [公式] 项在node n之后
+第一个可能满足这些条件的是 [公式] 的predecessor。update_others()的每次迭代正是通过find_predecessor()找到这个备选node p。 随后它从p开始一直沿逆时针方向调用update_finger_table()，直到条件2不能再被满足。
+
+这个步骤的时间复杂度为 [公式] 。
+
+转移数据
+
+这一条主要由使用Chord的上层应用实现。Chord在添加node n后会通知上层应用。由于node n只会负责那些曾经在node n的successor上的一部分数据，因此只有一个node需要进行数据转移。
+
+靠谱的添加一个node
+上面讨论的仍属于理想情况。实际应用中，多个nodes可能会同时加入或离开系统。在分布式环境下，如何正确的执行上一段中的join()是个很麻烦的事。为此，Chord在增减node时分成了两步。第一步只更新各个node的predecessor/successor来保证正确性，随后再更新它们的finger table来优化性能。这个过程称为stabilization。
+
+在添加一个node后，如果在stabilization完成前用户进行了一个lookup，那么这个lookup会有三种结果。最常见的就是所查询的key并没有受到新增node的影响，通过原先的finger table就可以找到。第二种是所有nodes的successor都已经更新，这时lookup仍能返回正确的结果，但是性能会有损失。最后就是nodes仍处于更新successor的状态，lookup失败。这时上层应用可以通过诸如exponential-backoff等策略进行重试。
+
+让我们看看修改后的join()过程：
+
+# 修改后的join，功能不变
+# 添加node n到系统中。可能会用到已有node n'来进行初始化
+def n.join(n'):
+  predecessor = None
+  successor = n'.find_successor(n)
+怎么这么短？
+
+这是由于主要的任务都集中在了下一个函数stabilize() 。注意join()既没有将node n加入环中，也并没有完成更新predcessor/successor的任务。
+
+stabilize() 是一个异步的过程。每个node不断在后台运行该函数。其综合效果就是检测新的nodes，并更新受影响的nodes的finger table。
+
+# 在后台定期运行
+def n.stabilize():
+  x = successor.predecessor  # 1
+  if x in (n, successor):    # 2
+    successor = x            # 3
+  successor.notify(n)        # 4
+
+# n'有可能是n最新的predecessor
+def n.notify(n'):
+  if (predecessor is None) or (n' in (predecessor, n)):  # 5
+    predecessor = n'                                     # 6
+让我们模拟一个添加node n的场景，来理解这几个函数是如何工作的。假如node n被加入到了node np和node ns之间，即环在顺时针方向上由{..., np, ns, ...}变为{..., np, n, ns, ...}。
+
+n.join()：执行后np, ns没有任何变化。n.predecessor = None, n.successor = ns。
+由于np, ns没有变化，它们执行stabilize()时也不会检测到n。而n执行n.stabilize()时， #1返回的是np。 因为#2[公式] ，#3被跳过。而#4被执行，即node n告知node ns自己的存在。
+当ns.notify(n)执行时， 由于#5[公式] ，#6被执行，即ns的predecessor被更新为n。
+当np再次执行np.stabilize()时，它会发现#1返回的是n。 由于#2[公式] ，它将执行#3，将successor更新为n。最后#4 会通知node n关于node np的存在。
+当n.notify(np)执行时，由于predecessor仍然为None，node n会将predecessor设为np。
+至此，np, n, ns之间的双向链表关系终于被建立，第一步正确性保证算是完成。这时候key lookup能够正确运行，但是因为finger table已过期，性能仍然较差。
+
+至于更新finger table的任务，则由另一个后台周期函数fix_fingers()完成
+
+def n.fix_fingers():
+  i = random()
+  if 1 < i and i <= m:  # i=1对应successor，它由stabilize负责
+    finger[i].node = find_successor(finger[i].start)
+可以看出，join()只是标记了新node的存在，其后所有操作都通过系统定时运行的任务自行完成。
+
+总结
+回到开篇的问题来看，Chord的设计比我所谓“直观“的解决方案要简单很多，其核心数据结构不过是一个双向链表。这算是我个人的局限性——上来就想套一个分布式系统模版，而没有考虑如何将一些已有的数据结构推广到分布式环境中。同时，分布式系统中单个node的状态机维护也并不一定会很复杂，主要还是因需求而异（比如Chord并不需要考虑一致性问题）。
+
+然而双向链表仅仅是正确性的保证。Chord利用identififer space的特性又维护了一个类似跳表的结构finger table，从而提升了查询性能。
