@@ -1,2 +1,4 @@
 # NUS-ECE-course
-some reports and materials for NUS ECE master courses
+
+
+This part is used to store some reports and materials for my NUS ECE master courses. If you have questions with related with above the courses, please tell me. 
