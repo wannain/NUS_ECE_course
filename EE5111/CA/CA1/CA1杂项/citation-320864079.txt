@@ -1,0 +1,8 @@
+@inproceedings{inproceedings,
+author = {Steinbaeck, Josef and Steger, Christian and Holweg, Gerald and Druml, Norbert},
+year = {2017},
+month = {10},
+pages = {},
+title = {Next Generation Radar Sensors in Automotive Sensor Fusion Systems},
+doi = {10.1109/SDF.2017.8126389}
+}

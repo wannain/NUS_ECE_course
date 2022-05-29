@@ -1,0 +1,18 @@
+
+@Article{s21041149,
+AUTHOR = {Shaukat, Nabil and Ali, Ahmed and Javed Iqbal, Muhammad and Moinuddin, Muhammad and Otero, Pablo},
+TITLE = {Multi-Sensor Fusion for Underwater Vehicle Localization by Augmentation of RBF Neural Network and Error-State Kalman Filter},
+JOURNAL = {Sensors},
+VOLUME = {21},
+YEAR = {2021},
+NUMBER = {4},
+ARTICLE-NUMBER = {1149},
+URL = {https://www.mdpi.com/1424-8220/21/4/1149},
+PubMedID = {33562145},
+ISSN = {1424-8220},
+ABSTRACT = {The Kalman filter variants extended Kalman filter (EKF) and error-state Kalman filter (ESKF) are widely used in underwater multi-sensor fusion applications for localization and navigation. Since these filters are designed by employing first-order Taylor series approximation in the error covariance matrix, they result in a decrease in estimation accuracy under high nonlinearity. In order to address this problem, we proposed a novel multi-sensor fusion algorithm for underwater vehicle localization that improves state estimation by augmentation of the radial basis function (RBF) neural network with ESKF. In the proposed algorithm, the RBF neural network is utilized to compensate the lack of ESKF performance by improving the innovation error term. The weights and centers of the RBF neural network are designed by minimizing the estimation mean square error (MSE) using the steepest descent optimization approach. To test the performance, the proposed RBF-augmented ESKF multi-sensor fusion was compared with the conventional ESKF under three different realistic scenarios using Monte Carlo simulations. We found that our proposed method provides better navigation and localization results despite high nonlinearity, modeling uncertainty, and external disturbances.},
+DOI = {10.3390/s21041149}
+}
+
+
+

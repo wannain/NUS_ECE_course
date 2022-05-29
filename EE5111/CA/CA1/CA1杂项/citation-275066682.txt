@@ -1,0 +1,10 @@
+@article{article,
+author = {Yuan, Xianghui and Han, Feng and Han, Chongzhao},
+year = {2014},
+month = {01},
+pages = {1-10},
+title = {Models and Algorithms for Tracking Target with Coordinated Turn Motion},
+volume = {2014},
+journal = {Mathematical Problems in Engineering},
+doi = {10.1155/2014/649276}
+}

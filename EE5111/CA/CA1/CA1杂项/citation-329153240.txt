@@ -1,0 +1,8 @@
+@inproceedings{inproceedings,
+author = {Kocic, Jelena and Jovičić, Nenad and Drndarevic, Vujo},
+year = {2018},
+month = {11},
+pages = {},
+title = {Sensors and Sensor Fusion in Autonomous Vehicles},
+doi = {10.1109/TELFOR.2018.8612054}
+}

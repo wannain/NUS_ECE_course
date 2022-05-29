@@ -1,0 +1,10 @@
+@article{article,
+author = {Jiang, Rui and Yang, Shuai and Ge, Shuzhi and Wang, Han and Lee, Tong},
+year = {2017},
+month = {01},
+pages = {1-1},
+title = {Geometric Map-Assisted Localization for Mobile Robots Based on Uniform-Gaussian Distribution},
+volume = {PP},
+journal = {IEEE Robotics and Automation Letters},
+doi = {10.1109/LRA.2017.2651385}
+}
