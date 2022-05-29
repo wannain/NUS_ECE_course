@@ -1,0 +1,22 @@
+#### 2 
+
+Hardware sensor fault diagnosis method can be used for detecting various faults in machines. Now we use one sensor to detect the possible faults in one machine. From the experimental test, we collected the sensor readings from the healthy state as shown below and wanted to do fault diagnosis.
+
+In this part, I use trend analysis as the technique to detect the fault.
+
+\frac{\delta_{O}}{\delta_{I}}=\frac{O_{i)-O_{i-1}}{I_{i)-I_{i-1}}
+
+For the healthy state from 1 to 9, we can get the sensitivities are 0.1, 0.1, -0.15, 0.51, 0.04, 0.1, -0.05, 0.05. 
+
+From the results, we can know that the minimum value of sentivities is -0.15, the maximum value of sensitivities is 0.51. Therefore the normal range of sensitivity is from -0.15 to 0.51.
+
+Turning to the sensor readings from 100 to 108,  we can calculate the sensivities are 0.1, -0.05, 0.35, 0.2, 0.5, 0.2, 1.1, 1.3. 
+
+Obviously we can find that the last two values are beyond the healthy state maximum sensitivities. Through the key idea in trend analysis, we know that there is a fault in the system and the detection time is 107s.
+
+I choose trend ananlysis because its pre-defined range of sensitivity can tell there is a fault when the sensitivity exceeds it. If the hardware is in the normal state, its sensitivity should keep same trend as before. 
+
+##### 3 
+
+
+

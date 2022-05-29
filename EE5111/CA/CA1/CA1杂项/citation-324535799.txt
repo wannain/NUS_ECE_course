@@ -1,0 +1,10 @@
+@article{article,
+author = {Wang, Han and Jiang, Rui and Zhang, Handuo and Ge, Shuzhi},
+year = {2018},
+month = {04},
+pages = {},
+title = {Heading Reference-Assisted Pose Estimation for Ground Vehicles},
+volume = {PP},
+journal = {IEEE Transactions on Automation Science and Engineering},
+doi = {10.1109/TASE.2018.2828078}
+}
